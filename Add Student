@@ -1,0 +1,90 @@
+Private Sub Cmd_Add_Click()
+    Dim name As String
+    Dim street As String
+    Dim city As String
+    Dim province As String
+    Dim country As String
+    Dim email As String
+    Dim rs As New ADODB.Recordset
+    Dim cn As New ADODB.Connection
+    Dim SQL As String
+    
+    'Sets user input value to variables
+    If Txt_Name.Value = "" _
+        Or Txt_SA.Value = "" _
+        Or Txt_City.Value = "" _
+        Or Txt_Province.Value = "" _
+        Or Txt_Country.Value = "" _
+        Or Txt_Email.Value = "" Then
+        MsgBox "Please enter all missing information in order to add student.", vbExclamation, "Missing Information"
+    Else
+        name = Txt_Name.Value
+        street = Txt_SA.Value
+        city = Txt_City.Value
+        province = Txt_Province.Value
+        country = Txt_Country.Value
+        email = Txt_Email.Value
+    
+    
+        'Connects to the database
+        With cn
+                .ConnectionString = "Data Source=" & ThisWorkbook.path & "/registrar.accdb"
+                .Provider = "Microsoft.ACE.OLEDB.12.0"
+                .Open
+        End With
+        
+        'SQL Statement
+        SQL = "SELECT * From students"
+        
+        'Opens a recordset and records new student to database
+        rs.Open SQL, cn, adOpenDynamic, adLockOptimistic
+        
+        With rs
+            .AddNew
+            .Fields("Student Name") = name
+            .Fields("Street Address") = street
+            .Fields("City") = city
+            .Fields("Province") = province
+            .Fields("Country") = country
+            .Fields("Email Address") = email
+            .Update
+        End With
+        
+        'After student has been added to database
+        Dim answer As Integer
+        MsgBox "Student has been added to the database.", vbInformation, "Add Student"
+        answer = MsgBox("Would you like to add another student?", vbYesNo + vbQuestion, "Add Student")
+        If answer = vbYes Then
+            Txt_Name.Value = ""
+            Txt_SA.Value = ""
+            Txt_City.Value = ""
+            Txt_Province.Value = ""
+            Txt_Country.Value = ""
+            Txt_Email.Value = ""
+        Else
+            Unload Me
+        End If
+        
+        
+        rs.Close
+        cn.Close
+        
+    End If
+End Sub
+
+Private Sub Cmd_Clear_Click()
+    Txt_Name.Value = ""
+    Txt_SA.Value = ""
+    Txt_City.Value = ""
+    Txt_Province.Value = ""
+    Txt_Country.Value = ""
+    Txt_Email.Value = ""
+End Sub
+
+Private Sub Cmd_Exit_Click()
+    Unload Me
+End Sub
+
+Private Sub Txt_Name_Change()
+
+End Sub
