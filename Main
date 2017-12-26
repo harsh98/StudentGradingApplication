@@ -1,0 +1,435 @@
+' +===================== CP212 Windows Application Programming ===============+
+' Name: Harsh Joshi
+' Student ID: 160340720
+' Date: 2017-12-09
+' Program title: Student Grades Application
+' Description: Main page of the student grading app
+' +===========================================================================+
+
+Private Sub CmdButton_Cancel_Click()
+    Unload Me
+End Sub
+
+Private Sub CmdButton__Click()
+    Dim cn As New ADODB.Connection
+    Dim rs As New ADODB.Recordset
+    Dim SQL As String
+    Dim class_avg As Double
+    Dim list() As Variant
+    Dim final_grade As Double
+    Dim total As Double
+    Dim gradeCount As Integer
+    
+    'Open Connection to Database
+    With cn
+        .ConnectionString = "Data Source=" & Application.ThisWorkbook.path & "\registrar.accdb"
+        .Provider = "Microsoft.ACE.OLEDB.12.0"
+        .Open
+    End With
+    
+    'SQL Statement to get all the grades
+    SQL = "SELECT A1,A2,A3,A4,M1,FinalExam FROM grades"
+    
+    rs.Open SQL, cn
+    
+    'To calculate how many sets of grades there are
+    With rs
+        Do Until .EOF
+            gradeCount = gradeCount + 1
+            .MoveNext
+        Loop
+    End With
+    
+    'Update list array
+    ReDim Preserve list(gradeCount - 1, 5)
+    
+    'Reopen record set to record grades into list array
+    rs.Close
+    rs.Open SQL, cn
+    Dim rowCount As Integer
+    rowCount = 0
+    With rs
+        Do Until .EOF
+            list(rowCount, 0) = .Fields("A1")
+            list(rowCount, 1) = .Fields("A2")
+            list(rowCount, 2) = .Fields("A3")
+            list(rowCount, 3) = .Fields("A4")
+            list(rowCount, 4) = .Fields("M1")
+            list(rowCount, 5) = .Fields("FinalExam")
+            rowCount = rowCount + 1
+            .MoveNext
+        Loop
+    End With
+    
+    'Calculate and display class average
+    For i = 0 To rowCount - 1
+        final_grade = (list(i, 0) * 0.05) + (list(i, 1) * 0.05) + (list(i, 2) * 0.05) + (list(i, 3) * 0.05) + (list(i, 4) * 0.3) + (list(i, 5) * 0.5)
+        total = total + final_grade
+    Next
+    class_avg = total / (rowCount)
+    MsgBox "The class average for all the students graded is " & class_avg & "%", vbInformation, "Class Average"
+    
+    rs.Close
+    cn.Close
+    
+End Sub
+
+Private Sub CmdButton_Next_Click()
+    
+    '-------------------------------------Import Enrolled Students----------------------------------------------------------'
+    
+    'Run if Import Enrolled Student option is selected
+    If OB_ImportStudents.Value = True Then
+        Dim fd As Office.FileDialog
+        Dim FileSys As Object
+        Set FileSys = CreateObject("Scripting.FileSystemObject")
+        Dim file As Variant
+        Dim path As String
+        
+        'File dialog to open new_enroled.dat file
+        Set fd = Application.FileDialog(msoFileDialogOpen)
+        fd.InitialFileName = ThisWorkbook.path
+        With fd
+            .AllowMultiSelect = False
+            .Filters.Clear
+            .Filters.Add "DAT File", "*.DAT"
+            If .Show Then
+                path = .SelectedItems(1)
+            End If
+        End With
+        
+        'Declare variables for database connection
+        Dim rs As New ADODB.Recordset
+        Dim cn As New ADODB.Connection
+        
+        'Opens connection to database
+        With cn
+            .ConnectionString = "Data Source=" & ThisWorkbook.path & "/registrar.accdb"
+            .Provider = "Microsoft.ACE.OLEDB.12.0"
+            .Open
+        End With
+        
+        Set fso = FileSys.OpenTextFile(path)
+        
+        Dim line As String
+        Dim temp() As String
+        
+        'SQL statement to export to database
+        Dim enrolSQL As String
+        enrolSQL = "SELECT * FROM enrollments"
+        rs.Open enrolSQL, cn, adOpenDynamic, adLockOptimistic
+        
+        'Records lines of new_enroled.dat file to the database
+        fso.SkipLine
+        Do Until fso.AtEndOfStream
+            line = fso.ReadLine
+            temp = Split(line, vbTab)
+            With rs
+                .AddNew
+                .Fields("studentID") = temp(0)
+                .Fields("termcode") = temp(1)
+                .Fields("courseID") = temp(2)
+                .Update
+            End With
+        Loop
+        
+        MsgBox "The students have been recorded to the registrar!", vbInformation, "Enrolled Students Recorded"
+        
+        rs.Close
+        cn.Close
+        
+        
+        
+    End If
+    
+    '---------------------------------------Import Student Grades-----------------------------------------------------------'
+    
+    'Run if Import Student Grades option is selected
+    If OB_ImportGrades = True Then
+        
+        Dim fd2 As Office.FileDialog
+        Dim FileSyst As Object
+        Set FileSyst = CreateObject("Scripting.FileSystemObject")
+        Dim filePath As String
+        
+        'File dialog to open new_grades.dat file
+        Set fd2 = Application.FileDialog(msoFileDialogOpen)
+        fd2.InitialFileName = ThisWorkbook.path
+        With fd2
+            .AllowMultiSelect = False
+            .Filters.Clear
+            .Filters.Add "DAT File", "*.DAT"
+            If .Show Then
+                filePath = .SelectedItems(1)
+            End If
+        End With
+        
+        Dim rs2 As New ADODB.Recordset
+        Dim cd As New ADODB.Connection
+        
+        'Open connection to database
+        With cd
+            .ConnectionString = "Data Source=" & ThisWorkbook.path & "/registrar.accdb"
+            .Provider = "Microsoft.ACE.OLEDB.12.0"
+            .Open
+        End With
+        
+        Set fso = FileSyst.OpenTextFile(filePath)
+        
+        Dim tempLine As String
+        Dim tempArr() As String
+        
+        'SQL statement to export to database
+        Dim gradesSQL As String
+        gradesSQL = "SELECT * FROM grades"
+        rs2.Open gradesSQL, cd, adOpenDynamic, adLockOptimistic
+    
+        'Record lines from new_grades.dat file to database
+        fso.SkipLine
+        Do Until fso.AtEndOfStream
+            tempLine = fso.ReadLine
+            tempArr = Split(tempLine, vbTab)
+            With rs2
+                .AddNew
+                .Fields("studentID") = tempArr(0)
+                .Fields("termcode") = tempArr(1)
+                .Fields("courseID") = tempArr(2)
+                .Fields("A1") = tempArr(3)
+                .Fields("A2") = tempArr(4)
+                .Fields("A3") = tempArr(5)
+                .Fields("A4") = tempArr(6)
+                .Fields("M1") = tempArr(7)
+                .Fields("FinalExam") = tempArr(8)
+                .Update
+            End With
+        Loop
+        
+        MsgBox "The grades have been recorded to the registrar!", vbInformation, "Grades Recorded"
+        
+        rs2.Close
+        cd.Close
+        
+    End If
+    
+    '--------------------------------------------Import List Courses---------------------------------------------------------'
+    
+    'Run if List Courses option is selected
+    If OB_ListCourses.Value = True Then
+        Dim cn1 As New ADODB.Connection
+        Dim rs1 As New ADODB.Recordset
+        Dim coursesSQL As String
+        Dim courses_list(7, 2) As Variant
+    
+        'Opens connection to database
+        With cn1
+            .ConnectionString = "Data Source=" & ThisWorkbook.path & "/registrar.accdb"
+            .Provider = "Microsoft.ACE.OLEDB.12.0"
+            .Open
+        End With
+        
+        'SQL for customers and products
+        coursesSQL = "SELECT courseID, CourseCode, CourseName FROM courses"
+        
+        'Open record set for coursesSQL
+        rs1.Open coursesSQL, cn1
+        rowCount = 0
+        With rs1
+            Do Until .EOF
+                courses_list(rowCount, 0) = .Fields("courseID")
+                courses_list(rowCount, 1) = .Fields("CourseCode")
+                courses_list(rowCount, 2) = .Fields("CourseName")
+                rowCount = rowCount + 1
+                .MoveNext
+            Loop
+        End With
+        
+        
+        'Record courses in the list
+        With Form_CourseList.ListBox_Courses
+            .Clear
+            .ColumnCount = 3
+            .ColumnWidths = "1cm ; 2cm; 2cm"
+            .list = courses_list()
+            .ListIndex = 0
+        End With
+        
+        Form_CourseList.Show
+        
+        rs1.Close
+        cn1.Close
+
+    End If
+    
+    '-----------------------------------View Data-------------------------------------------------------------------------'
+    
+    'Run if View Data option is selected
+    If OB_ViewData = True Then
+        
+        'Replace old worksheet with new worksheet
+        Application.DisplayAlerts = False
+        Dim ws As Worksheet
+        For Each ws In ActiveWorkbook.Worksheets
+            If ws.name = "Student Data" Then
+                ws.Delete
+            End If
+        Next
+        Application.DisplayAlerts = True
+        ActiveWorkbook.Worksheets.Add after:=Worksheets(Worksheets.Count)
+        Worksheets(Worksheets.Count).name = "Student Data"
+        
+        'Format Title for Data
+        With Worksheets("Student Data")
+            With .Range("A1")
+                .Value = "Student ID"
+                .HorizontalAlignment = xlCenter
+                .Font.Bold = True
+            End With
+            With .Range("B1")
+                .Value = "Student Name"
+                .HorizontalAlignment = xlCenter
+                .Font.Bold = True
+            End With
+            With .Range("C1")
+                .Value = "Street Address"
+                .HorizontalAlignment = xlCenter
+                .Font.Bold = True
+            End With
+            With .Range("D1")
+                .Value = "City"
+                .HorizontalAlignment = xlCenter
+                .Font.Bold = True
+            End With
+            With .Range("E1")
+                .Value = "Province"
+                .HorizontalAlignment = xlCenter
+                .Font.Bold = True
+            End With
+            With .Range("F1")
+                .Value = "Country"
+                .HorizontalAlignment = xlCenter
+                .Font.Bold = True
+            End With
+            With .Range("G1")
+                .Value = "Email Address"
+                .HorizontalAlignment = xlCenter
+                .Font.Bold = True
+            End With
+            With .Range("H1")
+                .Value = "Term"
+                .HorizontalAlignment = xlCenter
+                .Font.Bold = True
+            End With
+            With .Range("I1")
+                .Value = "Course ID"
+                .HorizontalAlignment = xlCenter
+                .Font.Bold = True
+            End With
+            With .Range("J1")
+                .Value = "A1"
+                .HorizontalAlignment = xlCenter
+                .Font.Bold = True
+            End With
+            With .Range("K1")
+                .Value = "A2"
+                .HorizontalAlignment = xlCenter
+                .Font.Bold = True
+            End With
+            With .Range("L1")
+                .Value = "A3"
+                .HorizontalAlignment = xlCenter
+                .Font.Bold = True
+            End With
+            With .Range("M1")
+                .Value = "A4"
+                .HorizontalAlignment = xlCenter
+                .Font.Bold = True
+            End With
+            With .Range("N1")
+                .Value = "M1"
+                .HorizontalAlignment = xlCenter
+                .Font.Bold = True
+            End With
+            With .Range("O1")
+                .Value = "Final Exam"
+                .HorizontalAlignment = xlCenter
+                .Font.Bold = True
+            End With
+            With .Range("P1")
+                .Value = "Final Grade"
+                .HorizontalAlignment = xlCenter
+                .Font.Bold = True
+            End With
+        End With
+        
+        Dim cn3 As New ADODB.Connection
+        Dim rs3 As New ADODB.Recordset
+        Dim dataSQL As String
+        Dim i As Integer
+        
+        'Opens connection to database
+        With cn3
+            .ConnectionString = "Data Source=" & ThisWorkbook.path & "/registrar.accdb"
+            .Provider = "Microsoft.ACE.OLEDB.12.0"
+            .Open
+        End With
+        
+        'SQL to get student data
+        dataSQL = "SELECT * FROM students"
+        'Open recordset and record student data to worksheet
+        rs3.Open dataSQL, cn3
+        i = 1
+        With rs3
+            Do Until .EOF
+                Worksheets("Student Data").Range("A1").Offset(i, 0).Value = .Fields("studentID")
+                Worksheets("Student Data").Range("B1").Offset(i, 0).Value = .Fields("Student Name")
+                Worksheets("Student Data").Range("C1").Offset(i, 0).Value = .Fields("Street Address")
+                Worksheets("Student Data").Range("D1").Offset(i, 0).Value = .Fields("City")
+                Worksheets("Student Data").Range("E1").Offset(i, 0).Value = .Fields("Province")
+                Worksheets("Student Data").Range("F1").Offset(i, 0).Value = .Fields("Country")
+                Worksheets("Student Data").Range("G1").Offset(i, 0).Value = .Fields("Email Address")
+                i = i + 1
+                .MoveNext
+            Loop
+        End With
+        
+        rs3.Close
+        
+        'SQL to get grades data
+        dataSQL = "SELECT * FROM grades"
+        'Open recordset and record grades data to worksheet
+        rs3.Open dataSQL, cn3
+        i = 1
+        With rs3
+            Do Until .EOF
+                Worksheets("Student Data").Range("H1").Offset(i, 0).Value = .Fields("termcode")
+                Worksheets("Student Data").Range("I1").Offset(i, 0).Value = .Fields("courseID")
+                Worksheets("Student Data").Range("J1").Offset(i, 0).Value = .Fields("A1")
+                Worksheets("Student Data").Range("K1").Offset(i, 0).Value = .Fields("A2")
+                Worksheets("Student Data").Range("L1").Offset(i, 0).Value = .Fields("A3")
+                Worksheets("Student Data").Range("M1").Offset(i, 0).Value = .Fields("A4")
+                Worksheets("Student Data").Range("N1").Offset(i, 0).Value = .Fields("M1")
+                Worksheets("Student Data").Range("O1").Offset(i, 0).Value = .Fields("FinalExam")
+                Worksheets("Student Data").Range("P1").Offset(i, 0).Value = .Fields("A1") * 0.05 + .Fields("A2") * 0.05 + .Fields("A3") * 0.05 + .Fields("A4") * 0.05 + .Fields("M1") * 0.3 + .Fields("FinalExam") * 0.5
+                i = i + 1
+                .MoveNext
+            Loop
+        End With
+        
+        rs3.Close
+        cn3.Close
+        
+    ActiveSheet.Columns.AutoFit
+    End If
+    
+    '------------------------------------Add Student----------------------------------------------------------------------'
+    
+    'Run if Add Student option is selected
+    If OB_AddStudent = True Then
+        Form_AddStudent.Show
+    End If
+    
+End Sub
+
+Private Sub OB_AddStudent_Click()
+
+End Sub
